@@ -6,6 +6,16 @@ from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import cross_val_score, StratifiedKFold
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import roc_auc_score
+import matplotlib
+matplotlib.rcParams['font.sans-serif'] = ['SimHei']
+matplotlib.rcParams['axes.unicode_minus'] = False
+
+# 在joblib导入部分修正
+import joblib
 
 # 数据加载
 data = pd.read_csv('data/heart_failure_clinical_records_dataset.csv')
@@ -71,3 +81,43 @@ sns.barplot(x='importance', y='feature', data=feature_importance)
 plt.title('特征重要性排序')
 plt.tight_layout()
 plt.savefig('feature_importance.png')
+
+# 在模型训练前添加算法对比
+algorithms = {
+    'Logistic Regression': LogisticRegression(class_weight='balanced', max_iter=1000),
+    'Random Forest': RandomForestClassifier(class_weight='balanced', n_jobs=-1),
+    'SVM': SVC(class_weight='balanced', probability=True)
+}
+
+# 添加超参数网格
+param_grid = {
+    'Logistic Regression': {'C': [0.01, 0.1, 1, 10], 'solver': ['liblinear', 'saga']},
+    'Random Forest': {'n_estimators': [50, 100], 'max_depth': [3, 5, None]},
+    'SVM': {'C': [0.1, 1, 10], 'kernel': ['linear', 'rbf']}
+}
+
+# 模型对比与调优
+results = {}
+for name, model in algorithms.items():
+    gs = GridSearchCV(model, param_grid[name], cv=5, scoring='accuracy', n_jobs=-1)
+    gs.fit(X_train_scaled, y_train)
+    
+    # 记录最佳模型
+    best_model = gs.best_estimator_
+    y_pred = best_model.predict(X_test_scaled)
+    
+    # 存储结果
+    results[name] = {
+        'best_params': gs.best_params_,
+        'accuracy': accuracy_score(y_test, y_pred),
+        'roc_auc': roc_auc_score(y_test, best_model.predict_proba(X_test_scaled)[:,1])
+    }
+
+# 输出对比结果
+print('\n算法对比结果：')
+for name, metrics in results.items():
+    print(f'{name}:\n  最佳参数：{metrics["best_params"]}\n  准确率：{metrics["accuracy"]:.3f}\n  AUC：{metrics["roc_auc"]:.3f}\n')
+
+# 保存最佳模型
+import joblib
+joblib.dump(best_model, 'best_model.pkl')
