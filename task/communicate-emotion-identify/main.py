@@ -29,7 +29,7 @@ def train_evaluate(model, X_train, X_test, y_train, y_test):
 
 # 新增验证指标计算
 def calculate_metrics(y_true, y_pred):
-    report = classification_report(y_true, y_pred, output_dict=True)
+    report = classification_report(y_true, y_pred, output_dict=True, zero_division=0)
     return {
         'accuracy': report['accuracy'],
         'macro_avg': report['macro avg'],
@@ -69,9 +69,9 @@ if __name__ == '__main__':
     
     # 初始化模型
     models = {
-        'Logistic Regression': LogisticRegression(),
-        'SVM': SVC(),
-        'Random Forest': RandomForestClassifier()
+        'Logistic Regression': LogisticRegression(class_weight='balanced'),
+        'SVM': SVC(class_weight='balanced'),
+        'Random Forest': RandomForestClassifier(class_weight='balanced_subsample')
     }
     
     # 训练并评估模型
